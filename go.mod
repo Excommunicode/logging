@@ -1,3 +1,3 @@
-module github/Excommunicode/logging
+module github.com/Excommunicode/logging
 
 go 1.25.5
