@@ -202,24 +202,28 @@ func (l *Logger) Error(msg string, keyvals ...interface{}) {
 	l.log(LevelError, msg, keyvals...)
 }
 
-// Debug logs using the package-level default logger.
-func Debug(msg string, keyvals ...interface{}) {
-	getDefaultLogger().Debug(msg, keyvals...)
+// Debug logs using fields extracted from ctx and additional keyvals.
+func Debug(ctx context.Context, msg string, keyvals ...interface{}) {
+	all := append(contextLogFields(ctx), keyvals...)
+	getDefaultLogger().Debug(msg, all...)
 }
 
-// Info logs using the package-level default logger.
-func Info(msg string, keyvals ...interface{}) {
-	getDefaultLogger().Info(msg, keyvals...)
+// Info logs using fields extracted from ctx and additional keyvals.
+func Info(ctx context.Context, msg string, keyvals ...interface{}) {
+	all := append(contextLogFields(ctx), keyvals...)
+	getDefaultLogger().Info(msg, all...)
 }
 
-// Warn logs using the package-level default logger.
-func Warn(msg string, keyvals ...interface{}) {
-	getDefaultLogger().Warn(msg, keyvals...)
+// Warn logs using fields extracted from ctx and additional keyvals.
+func Warn(ctx context.Context, msg string, keyvals ...interface{}) {
+	all := append(contextLogFields(ctx), keyvals...)
+	getDefaultLogger().Warn(msg, all...)
 }
 
-// Error logs using the package-level default logger.
-func Error(msg string, keyvals ...interface{}) {
-	getDefaultLogger().Error(msg, keyvals...)
+// Error logs using fields extracted from ctx and additional keyvals.
+func Error(ctx context.Context, msg string, keyvals ...interface{}) {
+	all := append(contextLogFields(ctx), keyvals...)
+	getDefaultLogger().Error(msg, all...)
 }
 
 // WithContext returns contextual logger based on package-level default logger.

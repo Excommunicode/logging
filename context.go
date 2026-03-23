@@ -6,6 +6,13 @@ import (
 
 type contextKey struct{}
 
+const (
+	LogFieldRequestID = "request_id"
+	LogFieldTenantID  = "tenant_id"
+	LogFieldThread    = "thread"
+	LogFieldClass     = "class"
+)
+
 // Context stores key in ctx and returns new context. Use for adding logging fields to context.
 // Later extract them with FromContext and pass to Logger.WithContext or include in log calls.
 func Context(ctx context.Context, key string, value interface{}) context.Context {
@@ -25,6 +32,44 @@ func Context(ctx context.Context, key string, value interface{}) context.Context
 // FromContext extracts logging data from context. Returns nil if nothing was set.
 func FromContext(ctx context.Context) map[string]interface{} {
 	return fromContext(ctx)
+}
+
+// ContextWithLogFields stores standard logging fields in context.
+// Empty values are ignored.
+func ContextWithLogFields(ctx context.Context, requestID, tenantID, thread, className string) context.Context {
+	if requestID != "" {
+		ctx = Context(ctx, LogFieldRequestID, requestID)
+	}
+	if tenantID != "" {
+		ctx = Context(ctx, LogFieldTenantID, tenantID)
+	}
+	if thread != "" {
+		ctx = Context(ctx, LogFieldThread, thread)
+	}
+	if className != "" {
+		ctx = Context(ctx, LogFieldClass, className)
+	}
+	return ctx
+}
+
+func contextLogFields(ctx context.Context) []interface{} {
+	m := fromContext(ctx)
+	if len(m) == 0 {
+		return nil
+	}
+
+	fields := make([]interface{}, 0, 8)
+	appendIfPresent := func(key string) {
+		if v, ok := m[key]; ok {
+			fields = append(fields, key, v)
+		}
+	}
+
+	appendIfPresent(LogFieldRequestID)
+	appendIfPresent(LogFieldTenantID)
+	appendIfPresent(LogFieldThread)
+	appendIfPresent(LogFieldClass)
+	return fields
 }
 
 func fromContext(ctx context.Context) map[string]interface{} {

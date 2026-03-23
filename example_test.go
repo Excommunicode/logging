@@ -9,18 +9,21 @@ func Example_logLevelFromEnv() {
 	os.Setenv("LOG_LEVEL", "DEBUG")
 	defer os.Unsetenv("LOG_LEVEL")
 
+	ctx := context.Background()
+	ctx = ContextWithLogFields(ctx, "req-1", "tenant-a", "worker-7", "context-manager")
+
 	SetDefaultLogger(New())
-	Info("started")
-	Debug("detail", "key", "value")
+	Info(ctx, "started")
+	Debug(ctx, "detail", "key", "value")
 }
 
 func Example_context() {
 	ctx := context.Background()
-	ctx = Context(ctx, "request_id", "req-123")
+	ctx = ContextWithLogFields(ctx, "req-123", "tenant-42", "main", "http-handler")
 	ctx = Context(ctx, "user_id", 42)
 
 	SetDefaultLogger(New())
-	WithContext(ctx).Info("request handled")
+	Info(ctx, "request handled", "user_id", 42)
 }
 
 func Example_fromContext() {
