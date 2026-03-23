@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
+	"time"
 )
 
 // Level represents log level.
@@ -67,6 +69,11 @@ type Logger struct {
 // Ensure *Logger implements ILogger.
 var _ ILogger = (*Logger)(nil)
 
+var (
+	defaultLoggerMu sync.RWMutex
+	defaultLogger   = New()
+)
+
 // levelFromEnv reads LOG_LEVEL from environment and returns Level.
 func levelFromEnv() Level {
 	return ParseLevel(os.Getenv("LOG_LEVEL"))
@@ -80,6 +87,32 @@ func New() *Logger {
 // NewWithLevel returns a logger with the given level (ignores env).
 func NewWithLevel(level Level) *Logger {
 	return &Logger{level: level}
+}
+
+// SetDefaultLogger replaces package-level logger used by functional API.
+func SetDefaultLogger(l *Logger) {
+	if l == nil {
+		return
+	}
+	defaultLoggerMu.Lock()
+	defer defaultLoggerMu.Unlock()
+	defaultLogger = l
+}
+
+func getDefaultLogger() *Logger {
+	defaultLoggerMu.RLock()
+	defer defaultLoggerMu.RUnlock()
+	return defaultLogger
+}
+
+// SetLevel sets level for package-level logger.
+func SetLevel(level Level) {
+	getDefaultLogger().SetLevel(level)
+}
+
+// CurrentLevel returns level for package-level logger.
+func CurrentLevel() Level {
+	return getDefaultLogger().Level()
 }
 
 // SetLevel sets the minimum log level at runtime.
@@ -106,12 +139,47 @@ func (l *Logger) log(level Level, msg string, keyvals ...interface{}) {
 	if !l.enabled(level) {
 		return
 	}
-	// Simple format: LEVEL message key=value key=value
-	out := level.String() + " " + msg
-	for i := 0; i+1 < len(keyvals); i += 2 {
-		out += fmt.Sprintf(" %v=%v", keyvals[i], keyvals[i+1])
-	}
+
+	out := formatLogLine(level, msg, keyvals...)
 	fmt.Println(out)
+}
+
+func formatLogLine(level Level, msg string, keyvals ...interface{}) string {
+	ts := time.Now().Format("2006-01-02T15:04:05.000")
+	fields := map[string]interface{}{
+		"request_id": "-",
+		"tenant_id":  "-",
+		"thread":     "-",
+		"class":      "context-manager",
+	}
+
+	for i := 0; i+1 < len(keyvals); i += 2 {
+		k := fmt.Sprint(keyvals[i])
+		fields[k] = keyvals[i+1]
+	}
+
+	parts := []string{
+		fmt.Sprintf("[%s]", ts),
+		fmt.Sprintf("[%s]", level.String()),
+		fmt.Sprintf("[request_id=%v]", fields["request_id"]),
+		fmt.Sprintf("[tenant_id=%v]", fields["tenant_id"]),
+		fmt.Sprintf("[thread=%v]", fields["thread"]),
+		fmt.Sprintf("[class=%v]", fields["class"]),
+	}
+
+	if msg != "" {
+		parts = append(parts, msg)
+	}
+
+	for i := 0; i+1 < len(keyvals); i += 2 {
+		k := fmt.Sprint(keyvals[i])
+		if k == "request_id" || k == "tenant_id" || k == "thread" || k == "class" {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%v=%v", keyvals[i], keyvals[i+1]))
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // Debug logs at LevelDebug.
@@ -132,4 +200,34 @@ func (l *Logger) Warn(msg string, keyvals ...interface{}) {
 // Error logs at LevelError.
 func (l *Logger) Error(msg string, keyvals ...interface{}) {
 	l.log(LevelError, msg, keyvals...)
+}
+
+// Debug logs using the package-level default logger.
+func Debug(msg string, keyvals ...interface{}) {
+	getDefaultLogger().Debug(msg, keyvals...)
+}
+
+// Info logs using the package-level default logger.
+func Info(msg string, keyvals ...interface{}) {
+	getDefaultLogger().Info(msg, keyvals...)
+}
+
+// Warn logs using the package-level default logger.
+func Warn(msg string, keyvals ...interface{}) {
+	getDefaultLogger().Warn(msg, keyvals...)
+}
+
+// Error logs using the package-level default logger.
+func Error(msg string, keyvals ...interface{}) {
+	getDefaultLogger().Error(msg, keyvals...)
+}
+
+// WithContext returns contextual logger based on package-level default logger.
+func WithContext(ctx context.Context) ILogger {
+	return getDefaultLogger().WithContext(ctx)
+}
+
+// With returns logger with static fields based on package-level default logger.
+func With(keyvals ...interface{}) ILogger {
+	return getDefaultLogger().With(keyvals...)
 }

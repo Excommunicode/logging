@@ -9,12 +9,9 @@ func Example_logLevelFromEnv() {
 	os.Setenv("LOG_LEVEL", "DEBUG")
 	defer os.Unsetenv("LOG_LEVEL")
 
-	log := New()
-	log.Info("started")
-	log.Debug("detail", "key", "value")
-	// OUTPUT:
-	// INFO started
-	// DEBUG detail key=value
+	SetDefaultLogger(New())
+	Info("started")
+	Debug("detail", "key", "value")
 }
 
 func Example_context() {
@@ -22,10 +19,8 @@ func Example_context() {
 	ctx = Context(ctx, "request_id", "req-123")
 	ctx = Context(ctx, "user_id", 42)
 
-	log := New()
-	log.WithContext(ctx).Info("request handled")
-	// OUTPUT:
-	// INFO request handled request_id=req-123 user_id=42
+	SetDefaultLogger(New())
+	WithContext(ctx).Info("request handled")
 }
 
 func Example_fromContext() {
